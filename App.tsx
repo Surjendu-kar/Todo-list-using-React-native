@@ -1,118 +1,199 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
 import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
   Text,
-  useColorScheme,
+  SafeAreaView,
+  FlatList,
   View,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  Button,
 } from 'react-native';
+import React, {FC, useEffect, useState} from 'react';
+// import Clipboard from '@react-native-clipboard/clipboard';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+type Todo = {
+  completed: boolean;
+  id: number;
+  todo: string;
+  userId: number;
+};
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
+interface ItemProps extends Todo {
+  index: number;
+  handleOnPress: () => void;
+  setText: React.Dispatch<React.SetStateAction<string>>;
+  setIsEdit: React.Dispatch<React.SetStateAction<boolean>>;
+  setEditingIndex: React.Dispatch<React.SetStateAction<number | null>>;
 }
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+const Item: FC<ItemProps> = ({
+  index,
+  todo,
+  completed,
+  handleOnPress,
+  setText,
+  setIsEdit,
+  setEditingIndex,
+}) => {
+  return (
+    <TouchableOpacity
+      onPress={handleOnPress}
+      onLongPress={() => {
+        setText(todo);
+        setIsEdit(true);
+        setEditingIndex(index);
+      }}>
+      <View style={styles.item}>
+        <Text>{index + 1}.</Text>
+        <Text selectable={true} style={completed && styles.completed}>
+          {todo}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+const App = () => {
+  const [todoData, setTodosData] = useState<Todo[]>([]);
+  const [text, setText] = useState<string>('');
+  const [isEdit, setIsEdit] = useState<boolean>(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch('https://dummyjson.com/todos');
+        const data = await res.json();
+        setTodosData(data.todos);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const handleOnPress = (index: number) => {
+    // Clipboard.setString(todoData[index].todo);
+    setTodosData(prev => {
+      const tempTodos = [...prev];
+      const todo = tempTodos[index];
+      todo.completed = !todo.completed;
+      return tempTodos;
+    });
+  };
+
+  const handleAdd = () => {
+    if (text.length === 0) {
+      return;
+    }
+
+    const newItem = {
+      // O(1)
+      id: todoData.length + 1,
+      todo: text,
+      completed: false,
+      userId: 1,
+    };
+
+    setTodosData(prev => [newItem, ...prev]);
+    resetEditing();
+  };
+
+  const handleUpdate = () => {
+    if (isEdit && editingIndex !== null) {
+      setTodosData(prev => {
+        const updatedTodos = [...prev];
+        updatedTodos[editingIndex].todo = text;
+        return updatedTodos;
+      });
+      resetEditing();
+    }
+  };
+
+  const resetEditing = () => {
+    setText('');
+    setIsEdit(false);
+    setEditingIndex(null);
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
+    <SafeAreaView style={styles.container}>
+      <View style={styles.addContainer}>
+        <TextInput
+          style={styles.input}
+          onChangeText={setText}
+          value={text}
+          placeholder="Add text"
+          multiline
+        />
+        <View style={styles.btnContainer}>
+          {isEdit ? (
+            <>
+              <Button title="Save" onPress={handleUpdate} />
+              <Button title="Cancel" onPress={resetEditing} />
+            </>
+          ) : (
+            <Button title="Add" onPress={handleAdd} />
+          )}
         </View>
-      </ScrollView>
+      </View>
+
+      <View style={styles.todoContainer}>
+        <FlatList
+          data={todoData}
+          renderItem={({item, index}) => (
+            <Item
+              index={index}
+              handleOnPress={() => handleOnPress(index)}
+              setText={setText}
+              setIsEdit={setIsEdit}
+              setEditingIndex={setEditingIndex}
+              {...item}
+            />
+          )}
+          keyExtractor={item => item.id.toString()}
+        />
+      </View>
     </SafeAreaView>
   );
-}
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
+};
 
 export default App;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  addContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    gap: 5,
+  },
+  btnContainer: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+
+  todoContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  item: {
+    flexDirection: 'row',
+    gap: 3,
+    paddingVertical: 8,
+  },
+  completed: {
+    textDecorationLine: 'line-through',
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    minWidth: 250,
+    maxWidth: 350,
+    height: 'auto',
+  },
+});
