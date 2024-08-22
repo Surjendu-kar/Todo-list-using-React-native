@@ -9,7 +9,6 @@ import {
   Button,
 } from 'react-native';
 import React, {FC, useEffect, useState} from 'react';
-// import Clipboard from '@react-native-clipboard/clipboard';
 
 type Todo = {
   completed: boolean;
@@ -58,6 +57,7 @@ const App = () => {
   const [text, setText] = useState<string>('');
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [hasChanged, setHasChanged] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -74,13 +74,19 @@ const App = () => {
   }, []);
 
   const handleOnPress = (index: number) => {
-    // Clipboard.setString(todoData[index].todo);
     setTodosData(prev => {
       const tempTodos = [...prev];
       const todo = tempTodos[index];
       todo.completed = !todo.completed;
       return tempTodos;
     });
+  };
+
+  const handleTextChange = (newText: string) => {
+    if (isEdit && editingIndex !== null) {
+      setHasChanged(newText.trim() !== todoData[editingIndex].todo);
+    }
+    setText(newText);
   };
 
   const handleAdd = () => {
@@ -91,7 +97,7 @@ const App = () => {
     const newItem = {
       // O(1)
       id: todoData.length + 1,
-      todo: text,
+      todo: text.trim(),
       completed: false,
       userId: 1,
     };
@@ -114,6 +120,7 @@ const App = () => {
   const resetEditing = () => {
     setText('');
     setIsEdit(false);
+    setHasChanged(false);
     setEditingIndex(null);
   };
 
@@ -122,7 +129,7 @@ const App = () => {
       <View style={styles.addContainer}>
         <TextInput
           style={styles.input}
-          onChangeText={setText}
+          onChangeText={handleTextChange}
           value={text}
           placeholder="Add text"
           multiline
@@ -130,7 +137,7 @@ const App = () => {
         <View style={styles.btnContainer}>
           {isEdit ? (
             <>
-              <Button title="Save" onPress={handleUpdate} />
+              {hasChanged && <Button title="Save" onPress={handleUpdate} />}
               <Button title="Cancel" onPress={resetEditing} />
             </>
           ) : (
